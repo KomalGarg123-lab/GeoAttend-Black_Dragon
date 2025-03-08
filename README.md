@@ -26,8 +26,7 @@ The Employee Attendance System is a web application designed to manage employee 
 
 1. Clone the Repository:
    ```bash
-   git clone https://github.com/your-username/employee-attendance-system.git
-   cd employee-attendance-system
+   git clone https://github.com/KomalGarg123-lab/GeoAttend-Black_Dragon/tree/main/Black%20Dragon
    ```
 
 2. Open the Project:
