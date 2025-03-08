@@ -60,6 +60,10 @@ The Employee Attendance System is a web application designed to manage employee 
 - `admin.js`: JavaScript file for handling admin functionalities.
 - `script.js`: JavaScript file for managing attendance logic.
 
+- NOTE --> For admin login,
+-          Username - admin
+-          Password - adminpass
+
 # Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request with your changes.
