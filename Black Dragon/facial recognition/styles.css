@@ -1,0 +1,74 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+  }
+  
+  h1 {
+    margin-bottom: 20px;
+  }
+  
+  /* Registration area styling */
+  #registration {
+    margin-bottom: 20px;
+  }
+  
+  #registration input {
+    padding: 10px;
+    font-size: 16px;
+    width: 250px;
+    margin-right: 10px;
+  }
+  
+  /* Container for video and canvas */
+  #videoContainer {
+    position: relative;
+    width: 720px;
+    height: 560px;
+    margin: 0 auto;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    overflow: hidden;
+  }
+  
+  /* Video styling */
+  #video {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  
+  /* Status text styling */
+  #status {
+    margin-top: 20px;
+    font-size: 1.1em;
+    color: #333;
+  }
+  
+  /* Attendance log styling */
+  #attendanceLog {
+    margin-top: 20px;
+    width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  #logTable {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  #logTable th, #logTable td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+  }
+  
+  #logTable th {
+    background-color: #007bff;
+    color: white;
+  }
+  

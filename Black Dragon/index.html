@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Employee Portal - Login & Registration</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- (Optional) Google Fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="navbar">
+    <div class="brand">
+      <h1 class="brand-name">Black Dragon</h1>
+    </div>
+    <nav class="nav-links">
+      <!-- Clicking "Sign up" toggles the register form -->
+      <a href="#" id="showRegister" class="nav-link">Sign up</a>
+    </nav>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <div class="main-wrapper">
+    <!-- LOGIN FORM -->
+    <section id="login-container" class="form-container">
+      <h2 class="login-title">Employee Login</h2>
+      <p class="login-subtitle">
+        Hey, enter your details to sign in to your account
+      </p>
+
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" class="form-control" placeholder="Enter your username" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" class="form-control" placeholder="Enter your password" required>
+        </div>
+        <button type="submit" class="btn sign-in-btn">Sign in</button>
+      </form>
+      <p class="toggle-link">
+        Don't have an account? <a href="#" id="showRegister">Register now</a>
+      </p>
+    </section>
+
+    <!-- REGISTRATION FORM (initially hidden) -->
+    <section id="register-container" class="form-container hidden">
+      <h2 class="login-title">Employee Registration</h2>
+      <p class="login-subtitle">
+        Create your account to access the portal
+      </p>
+
+      <form id="registerForm" class="login-form">
+        <div class="form-group">
+          <label for="regUsername">Username</label>
+          <input type="text" id="regUsername" class="form-control" placeholder="Choose a username" required>
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" class="form-control" placeholder="Choose a password" required>
+        </div>
+        <button type="submit" class="btn sign-in-btn">Register</button>
+      </form>
+      <p class="toggle-link">
+        Already have an account? <a href="#" id="showLogin">Login here</a>
+      </p>
+    </section>
+
+    <!-- Message Area (shared for both forms) -->
+    <div id="message" class="alert hidden"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <p>&copy; 2023 Black Dragon. All rights reserved. | <a href="#">Privacy Policy</a></p>
+  </footer>
+
+  <!-- CryptoJS for password hashing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <!-- Custom Script -->
+  <script src="scripts.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Face Recognition Attendance Demo</title>
+  <!-- Load the browser-friendly face-api.js library -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js/dist/face-api.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Face Recognition Attendance Demo</h1>
+
+  <!-- Registration Section -->
+  <div id="registration">
+    <input type="text" id="userName" placeholder="Enter your name for registration">
+    <button id="registerBtn">Register Face</button>
+  </div>
+
+  <!-- Video Container -->
+  <div id="videoContainer">
+    <video id="video" width="720" height="560" autoplay muted></video>
+  </div>
+
+  <p id="status">Loading models...</p>
+
+  <!-- Attendance Log Section -->
+  <div id="attendanceLog">
+    <h2>Attendance Log</h2>
+    <table id="logTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Event</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Attendance records will be appended here -->
+      </tbody>
+    </table>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

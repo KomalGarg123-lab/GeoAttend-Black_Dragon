@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Attendance Dashboard</title>
+  <!-- Bootstrap CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    /* Optional: add your custom styles here */
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container text-center">
+      <h1>Attendance Dashboard</h1>
+    </div>
+  </header>
+
+  <main class="container my-4">
+    <!-- Status display -->
+    <p id="status">Waiting for location...</p>
+
+    <!-- Map Display -->
+    <div id="map" style="height: 300px; margin-bottom: 20px;"></div>
+
+    <!-- Manual Check-In/Out Buttons -->
+    <div class="d-flex justify-content-end mb-3">
+      <button id="manualCheckInBtn" class="btn btn-secondary me-2">
+        Manual Check-In
+      </button>
+      <button id="manualCheckOutBtn" class="btn btn-secondary">
+        Manual Check-Out
+      </button>
+    </div>
+
+    <!-- Attendance Log Table -->
+    <h3>Attendance Log</h3>
+    <table id="logTable" class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Office</th>
+          <th>Event</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Work Duration (min)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Records will be appended here dynamically -->
+      </tbody>
+    </table>
+  </main>
+
+  <!-- Manual Check-In Modal -->
+  <div
+    class="modal fade"
+    id="manualModal"
+    tabindex="-1"
+    aria-labelledby="manualModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="manualModalLabel">Manual Check-In</h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <p>Select an office location for manual check-in:</p>
+          <select id="officeSelect" class="form-select">
+            <!-- Options will be populated dynamically -->
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button
+            id="confirmManualBtn"
+            type="button"
+            class="btn btn-primary"
+            data-bs-dismiss="modal"
+          >
+            Check In
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container text-center">
+      <p>&copy; 2023 My Company. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- CryptoJS for encryption -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // ------------------- Configuration & Global Variables -------------------
+      const offices = [
+        { name: "Main Office", latitude: 26.836547, longitude: 75.649388 },
+      ];
+      const allowedRadius = 200; // in meters
+      const CHECKOUT_THRESHOLD = 5000; // 5 seconds for auto check-out
+      const secretKey = "mySecretKey"; // Must match the key used elsewhere
+      const MAX_RETRIES = 3;
+
+      let isCheckedIn = false;
+      let checkInTime = null;
+      let currentOffice = null;
+      let attendanceLog = [];
+      let retryCount = 0;
+      let cachedManualPosition = null;
+
+      // ------------------- DOM Elements -------------------
+      const statusEl = document.getElementById("status");
+      const logTableBody = document.querySelector("#logTable tbody");
+      const manualCheckInBtn = document.getElementById("manualCheckInBtn");
+      const manualCheckOutBtn = document.getElementById("manualCheckOutBtn");
+      const officeSelect = document.getElementById("officeSelect");
+
+      // Map variables
+      let map, marker, officeCircle;
+
+      // ------------------- Attendance Logging with Encrypted Storage -------------------
+      function updateLogTable() {
+        if (!logTableBody) return;
+        logTableBody.innerHTML = "";
+        attendanceLog.forEach((record) => {
+          const duration = record.workDuration ? record.workDuration.toFixed(2) : "-";
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${record.office}</td>
+                           <td>${record.event}</td>
+                           <td>${record.date}</td>
+                           <td>${record.time}</td>
+                           <td>${duration}</td>`;
+          logTableBody.appendChild(row);
+        });
+      }
+
+      function saveAttendanceLog() {
+        const data = JSON.stringify(attendanceLog);
+        const ciphertext = CryptoJS.AES.encrypt(data, secretKey).toString();
+        localStorage.setItem("attendanceLog", ciphertext);
+      }
+
+      function loadAttendanceLog() {
+        const ciphertext = localStorage.getItem("attendanceLog");
+        if (ciphertext) {
+          try {
+            const bytes = CryptoJS.AES.decrypt(ciphertext, secretKey);
+            const data = bytes.toString(CryptoJS.enc.Utf8);
+            let storedLog = JSON.parse(data);
+            // Filter records by the currently logged-in user
+            const currentUser = localStorage.getItem("currentUser") || "unknown";
+            attendanceLog = storedLog.filter((record) => record.username === currentUser);
+            updateLogTable();
+          } catch (e) {
+            console.error("Error decrypting attendance log:", e);
+          }
+        }
+      }
+
+      function addAttendanceRecord(officeName, event) {
+        const now = new Date();
+        const currentUser = localStorage.getItem("currentUser") || "unknown";
+        const record = {
+          username: currentUser, // Associate record with current user
+          office: officeName,
+          event: event,
+          date: now.toLocaleDateString(),
+          time: now.toLocaleTimeString(),
+          workDuration: null,
+        };
+        if (event === "Check Out" && checkInTime !== null) {
+          record.workDuration = (now.getTime() - checkInTime) / 60000; // in minutes
+          checkInTime = null;
+        }
+        attendanceLog.push(record);
+        updateLogTable();
+        saveAttendanceLog();
+      }
+
+      if (logTableBody) {
+        loadAttendanceLog();
+      }
+
+      // ------------------- Geolocation and Map Logic -------------------
+      function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371000; // Earth's radius in meters
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+                  Math.cos(lat1 * Math.PI / 180) *
+                  Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      }
+
+      function processPosition(position) {
+        // Reset retry count on successful reading
+        retryCount = 0;
+
+        const currentLat = position.coords.latitude;
+        const currentLon = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+        console.log(`Received position: lat=${currentLat}, lon=${currentLon}, accuracy=${accuracy}m`);
+
+        // Adjusted threshold: allow up to 100 meters accuracy
+        if (accuracy > 100) {
+          console.warn("Poor accuracy reading; ignoring this update.");
+          statusEl.textContent = "Poor accuracy reading. Try moving to an open area.";
+          return;
+        }
+
+        // For our demo, we have one office – Main Office
+        const nearestOffice = offices[0];
+        const distance = getDistance(currentLat, currentLon, nearestOffice.latitude, nearestOffice.longitude);
+
+        statusEl.textContent = `Nearest Office: ${nearestOffice.name}, Distance: ${Math.round(
+          distance
+        )}m, Accuracy: ±${Math.round(accuracy)}m`;
+        updateMap(currentLat, currentLon);
+
+        const currentTime = Date.now();
+        if (distance <= allowedRadius) {
+          if (!isCheckedIn) {
+            currentOffice = nearestOffice;
+            logCheckIn(nearestOffice);
+          } else {
+            // Keep session active by updating checkInTime
+            checkInTime = currentTime;
+          }
+        } else {
+          if (isCheckedIn && (currentTime - checkInTime > CHECKOUT_THRESHOLD)) {
+            logCheckOut();
+          }
+        }
+      }
+
+      function handleGeolocationError(error) {
+        statusEl.textContent = "Error obtaining location: " + error.message;
+        console.error("Geolocation error:", error);
+
+        if (error.code === error.TIMEOUT && retryCount < MAX_RETRIES) {
+          retryCount++;
+          console.warn(`Timeout expired. Retrying in 3 seconds... (Retry ${retryCount} of ${MAX_RETRIES})`);
+          setTimeout(() => {
+            navigator.geolocation.getCurrentPosition(
+              processPosition,
+              handleGeolocationError,
+              { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            );
+          }, 3000);
+        } else if (error.code === error.TIMEOUT && retryCount >= MAX_RETRIES) {
+          alert("Unable to obtain a precise location after multiple attempts. Please try moving to an open area and try again.");
+          retryCount = 0;
+        }
+      }
+
+      function logCheckIn(office) {
+        isCheckedIn = true;
+        checkInTime = Date.now();
+        addAttendanceRecord(office.name, "Check In");
+      }
+
+      function logCheckOut() {
+        if (currentOffice) {
+          addAttendanceRecord(currentOffice.name, "Check Out");
+        }
+        isCheckedIn = false;
+        currentOffice = null;
+        checkInTime = null;
+      }
+
+      // ------------------- Map Functions using Leaflet -------------------
+      function initMap(lat, lon) {
+        map = L.map("map").setView([lat, lon], 16);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap contributors"
+        }).addTo(map);
+        marker = L.marker([lat, lon]).addTo(map);
+        officeCircle = L.circle([lat, lon], {
+          color: "green",
+          fillColor: "#0f0",
+          fillOpacity: 0.2,
+          radius: allowedRadius
+        }).addTo(map);
+      }
+
+      function updateMap(lat, lon) {
+        if (map) {
+          map.setView([lat, lon], 16);
+          marker.setLatLng([lat, lon]);
+        }
+      }
+
+      // ------------------- Manual Check-In/Out Logic -------------------
+      function getFreshPosition(retries) {
+        return new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(pos),
+            (error) => {
+              if (error.code === error.TIMEOUT && retries > 0) {
+                console.warn(`Timeout expired, retrying in 1 second... (${retries} retries left)`);
+                setTimeout(() => {
+                  getFreshPosition(retries - 1).then(resolve).catch(reject);
+                }, 1000);
+              } else {
+                reject(error);
+              }
+            },
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
+          );
+        });
+      }
+
+      if (manualCheckInBtn) {
+        manualCheckInBtn.addEventListener("click", () => {
+          if (cachedManualPosition) {
+            console.log("Using cached manual position.");
+            displayManualModal(cachedManualPosition);
+          } else {
+            console.log("Manual Check-In button clicked, requesting fresh location...");
+            getFreshPosition(MAX_RETRIES)
+              .then((position) => {
+                cachedManualPosition = position;
+                console.log(
+                  `Manual Check-In fetched position: lat=${position.coords.latitude}, lon=${position.coords.longitude}`
+                );
+                displayManualModal(position);
+              })
+              .catch((error) => {
+                console.error("Manual Check-In Error:", error);
+                alert("Unable to fetch a fresh location after multiple attempts. Error: " + error.message);
+              });
+          }
+        });
+      }
+
+      function displayManualModal(position) {
+        const currentLat = position.coords.latitude;
+        const currentLon = position.coords.longitude;
+        const officeDistances = offices.map((office) => ({
+          office: office,
+          distance: getDistance(currentLat, currentLon, office.latitude, office.longitude),
+        }));
+        officeDistances.sort((a, b) => a.distance - b.distance);
+        officeSelect.innerHTML = "";
+        officeDistances.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item.office.name;
+          option.textContent = `${item.office.name} - ${Math.round(item.distance)}m away`;
+          officeSelect.appendChild(option);
+        });
+        const manualModal = new bootstrap.Modal(document.getElementById("manualModal"));
+        manualModal.show();
+      }
+
+      const confirmManualBtn = document.getElementById("confirmManualBtn");
+      if (confirmManualBtn) {
+        confirmManualBtn.addEventListener("click", () => {
+          const selectedOfficeName = officeSelect.value;
+          const office = offices.find((o) => o.name === selectedOfficeName);
+          if (office) {
+            if (isCheckedIn) {
+              logCheckOut();
+            }
+            currentOffice = office;
+            logCheckIn(office);
+          }
+        });
+      }
+
+      if (manualCheckOutBtn) {
+        manualCheckOutBtn.addEventListener("click", () => {
+          if (isCheckedIn) {
+            logCheckOut();
+          } else {
+            alert("You are not currently checked in.");
+          }
+        });
+      }
+
+      // ------------------- Single Location Capture on Page Load -------------------
+      function startAttendanceMonitoring() {
+        if ("geolocation" in navigator) {
+          console.log("Requesting current position...");
+          navigator.geolocation.getCurrentPosition(
+            processPosition,
+            handleGeolocationError,
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+          );
+        } else {
+          statusEl.textContent = "Geolocation is not supported by your browser.";
+          console.error("Geolocation not supported.");
+        }
+        // Initialize the map with the Main Office coordinates
+        initMap(offices[0].latitude, offices[0].longitude);
+      }
+
+      if (document.getElementById("map")) {
+        startAttendanceMonitoring();
+      }
+    });
+  </script>
+</body>
+</html>
